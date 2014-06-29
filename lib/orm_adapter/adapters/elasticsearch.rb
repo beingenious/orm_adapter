@@ -1,0 +1,68 @@
+require 'elasticsearch/persistence'
+
+module Elasticsearch
+  module Persistence
+    module Model
+      extend ActiveSupport::Concern
+
+      module ClassMethods
+        include OrmAdapter::ToAdapter
+      end
+
+      class OrmAdapter < ::OrmAdapter::Base
+        # get a list of column names for a given class
+        def column_names
+          klass.new.attributes.keys
+        end
+
+        # @see OrmAdapter::Base#get!
+        def get!(id)
+          Array(klass.find(id)).first
+        end
+
+        # @see OrmAdapter::Base#get
+        def get(id)
+          Array(klass.find(id)).first rescue nil
+        end
+
+        # @see OrmAdapter::Base#find_first
+        def find_first(options = {})
+          conditions, order = extract_conditions!(options)
+          klass.all(query: { match: conditions_to_fields(conditions) }, sort: order, size: 1).first
+        end
+
+        # @see OrmAdapter::Base#find_all
+        def find_all(options = {})
+          conditions, order, limit, offset = extract_conditions!(options)
+          klass.all(query: { match: conditions_to_fields(conditions) }, sort: order, from: offset || 0, size: limit).to_a
+        end
+
+        # @see OrmAdapter::Base#create!
+        def create!(attributes = {})
+          klass.create(attributes)
+        end
+
+        # @see OrmAdapter::Base#destroy
+        def destroy(object)
+          object.destroy if valid_object?(object)
+        end
+
+      protected
+
+        # converts and documents to ids
+        def conditions_to_fields(conditions)
+          instance = klass.new
+          conditions.inject({}) do |fields, (key, value)|
+            if value.is_a?(Elasticsearch::Persistence::Model) && instance.attributes.keys.include?("#{key}_id")
+              fields.merge("#{key}_id" => value.id)
+            elsif key.to_s == 'id'
+              fields.merge('_id' => value)
+            else
+              fields.merge(key => value)
+            end
+          end
+        end
+      end
+    end
+  end
+end
