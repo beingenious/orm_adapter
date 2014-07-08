@@ -17,7 +17,7 @@ module Elasticsearch
 
         # @see OrmAdapter::Base#get!
         def get!(id)
-          Array(klass.find(id)).first
+          Array(klass.find(id)).first rescue nil
         end
 
         # @see OrmAdapter::Base#get
@@ -28,13 +28,13 @@ module Elasticsearch
         # @see OrmAdapter::Base#find_first
         def find_first(options = {})
           conditions, order = extract_conditions!(options)
-          klass.all(query: { match: conditions_to_fields(conditions) }, sort: order, size: 1).first
+          klass.all(query: { term: conditions_to_fields(conditions) }, sort: order, size: 1).first rescue nil
         end
 
         # @see OrmAdapter::Base#find_all
         def find_all(options = {})
           conditions, order, limit, offset = extract_conditions!(options)
-          klass.all(query: { match: conditions_to_fields(conditions) }, sort: order, from: offset || 0, size: limit).to_a
+          klass.all(query: { term: conditions_to_fields(conditions) }, sort: order, from: offset || 0, size: limit).to_a rescue nil
         end
 
         # @see OrmAdapter::Base#create!
